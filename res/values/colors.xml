@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Google Material 3 palette: deeper blue, calmer neutrals, softer outlines -->
+    <color name="primary">#0B57D0</color>
+    <color name="primary_dark">#0842A0</color>
+    <color name="primary_light">#D3E3FD</color>
+    <color name="bg">#F7F9FC</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="text_primary">#1F1F1F</color>
+    <color name="text_secondary">#5F6368</color>
+    <color name="divider">#E3E6EA</color>
+    <color name="warn">#D93025</color>
+    <color name="warn_light">#FCE8E6</color>
+    <color name="ok">#188038</color>
+    <color name="ok_light">#E6F4EA</color>
+    <color name="danger_text">#D93025</color>
+</resources>

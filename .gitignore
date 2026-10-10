@@ -1,0 +1,21 @@
+# 构建产物与临时文件
+build/
+*.apk
+*.idsig
+
+# 本机私密文件：里面是真实订阅链接（含令牌），绝不入库
+url.txt
+
+# 签名钥匙：不公开（要备份就单独存，别放仓库）
+*.keystore
+*.jks
+local.properties
+
+# 编辑器/系统杂物
+.gradle/
+*.log
+.DS_Store
+
+# Python 缓存
+__pycache__/
+*.pyc

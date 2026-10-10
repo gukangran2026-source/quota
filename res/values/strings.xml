@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Quota</string>
+    <string name="app_subtitle">Quota</string>
+    <string name="header_title">配额</string>
+    <string name="hint_search">搜索</string>
+    <string name="cd_refresh_all">一键刷新所有订阅</string>
+    <string name="cd_refresh_card">刷新这条订阅</string>
+    <string name="cd_add">添加订阅</string>
+    <string name="cd_search">搜索订阅</string>
+    <string name="cd_more">更多设置</string>
+    <string name="cd_close_search">收起搜索</string>
+    <string name="btn_detail">详情</string>
+    <string name="empty_hint">还没有订阅\n点右上角的 + 添加</string>
+    <string name="menu_show_used">优先显示已用</string>
+    <string name="menu_show_remain">优先显示剩余</string>
+    <string name="menu_ua">设置 UA</string>
+    <string name="menu_mode">查询方式</string>
+    <string name="menu_interval">自动刷新</string>
+    <string name="menu_about">关于</string>
+    <string name="menu_font">字体大小</string>
+    <string name="menu_theme">主题</string>
+    <string name="menu_color">配色</string>
+    <string name="btn_rename">重命名</string>
+    <string name="menu_refresh_all">立即刷新（用已锁定方式）</string>
+    <string name="diag_title">查询详情</string>
+    <string name="btn_recheck">重新验证方式</string>
+    <string name="btn_refresh_now">立即刷新</string>
+    <string name="btn_edit_url">编辑链接</string>
+    <string name="btn_copy">复制详情</string>
+    <string name="btn_delete">删除</string>
+    <string name="btn_close">关闭</string>
+    <string name="sheet_title">添加订阅</string>
+    <string name="sheet_hint">粘贴订阅链接（http / https）</string>
+    <string name="sheet_paste">粘贴</string>
+    <string name="sheet_add">添加并查询</string>
+    <string name="sheet_cancel">取消</string>
+</resources>

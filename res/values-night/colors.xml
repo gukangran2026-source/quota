@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 暗色：品牌蓝和状态色保留（色块上是白字），底色/文字/分隔线换成中性暗色 -->
+    <color name="primary">#0B57D0</color>
+    <color name="primary_dark">#0842A0</color>
+    <color name="primary_light">#1E3A6B</color>
+    <color name="bg">#121212</color>
+    <color name="surface">#1E1E1E</color>
+    <color name="text_primary">#E8EAED</color>
+    <color name="text_secondary">#9AA0A6</color>
+    <color name="divider">#3C4043</color>
+    <color name="warn">#D93025</color>
+    <color name="warn_light">#5C2B29</color>
+    <color name="ok">#188038</color>
+    <color name="ok_light">#1E3A28</color>
+    <color name="danger_text">#F28B82</color>
+</resources>

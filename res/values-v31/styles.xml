@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      莫奈配色（Material You / 动态取色）：主色来自系统从壁纸里算出来的调色板，
+      只有 Android 12（API 31）及以上才有 system_accent1_* 这些资源，
+      所以这份主题只放在 values-v31 里；低版本代码里不会去用它。
+      parent 指向 AppTheme，所以浅色/深色两套底色、圆角等依旧自动跟随。
+    -->
+    <style name="AppTheme.Monet" parent="@style/AppTheme">
+        <item name="android:colorPrimary">@android:color/system_accent1_600</item>
+        <item name="android:colorPrimaryDark">@android:color/system_accent1_800</item>
+        <item name="android:colorAccent">@android:color/system_accent1_500</item>
+        <item name="android:statusBarColor">@android:color/system_accent1_800</item>
+    </style>
+</resources>
