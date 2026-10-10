@@ -1141,7 +1141,7 @@ public class MainActivity extends Activity {
     private void showAbout() {
         new AlertDialog.Builder(this)
                 .setTitle("关于")
-                .setMessage("Quota v2.6\n\n"
+                .setMessage("Quota v2.7\n\n"
                         + "作者：gukangran2026-source（GitHub）\n\n"
                         + "用途：把订阅链接里的额度信息读出来，显示剩余流量和到期时间。\n\n"
                         + "原理：向订阅链接发一次 GET 请求，读取服务器返回的 subscription-userinfo 响应头"

@@ -10,6 +10,6 @@
         <item name="android:colorPrimary">@android:color/system_accent1_600</item>
         <item name="android:colorPrimaryDark">@android:color/system_accent1_800</item>
         <item name="android:colorAccent">@android:color/system_accent1_500</item>
-        <item name="android:statusBarColor">@android:color/system_accent1_800</item>
+        <item name="android:statusBarColor">@android:color/system_accent1_600</item>
     </style>
 </resources>

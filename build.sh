@@ -17,7 +17,7 @@ OUT=$PROJ/build
 KS=/root/.android/debug.keystore
 KSPASS=android
 ALIAS=androiddebugkey
-APKNAME="SubTraffic-v2.6.apk"
+APKNAME="SubTraffic-v2.7.apk"
 
 echo "== 0. clean =="
 rm -rf "$OUT"
