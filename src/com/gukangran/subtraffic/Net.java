@@ -152,11 +152,47 @@ public final class Net {
         if (body.isEmpty()) {
             return false;
         }
+        // 只有“服务器明确说这条链接不能用”才算令牌被拒。普通的 404/403 页面、
+        // 限流页、HTML 错误页都不算——那两种情况另有专门提示。
+        if (body.contains("token is error") || body.contains("token is invalid")
+                || body.contains("invalid token") || body.contains("token expired")
+                || body.contains("令牌无效") || body.contains("令牌已失效")) {
+            return true;
+        }
         boolean tokenWord = body.contains("token") || body.contains("令牌") || body.contains("key");
-        boolean badWord = body.contains("error") || body.contains("invalid") || body.contains("expired")
-                || body.contains("错误") || body.contains("无效") || body.contains("过期")
-                || body.contains("失效");
-        return tokenWord && badWord;
+        boolean badWord = body.contains("invalid") || body.contains("expired")
+                || body.contains("无效") || body.contains("过期") || body.contains("失效");
+        // 只有很短的纯文本错误（不是一整页 HTML）才信这套关键词，
+        // 否则 <html>…error…</html> 这种页面会被误判成令牌失效。
+        return tokenWord && badWord && body.length() < 300 && !body.contains("<html")
+                && !body.contains("<!doctype");
+    }
+
+    /** 服务器限流（请求太频繁）。换个 UA 再打一次只会更严重，应该停下来等。 */
+    public static boolean isRateLimited(Resp r) {
+        return r != null && r.code == 429;
+    }
+
+    /**
+     * 服务器明确说订阅链接本身失效/过期（面板常见：404 + "Subscription link is
+     * invalid or expired"）。这种情况换 UA 也没用，但和令牌被拒不同——需要去面板
+     * 重新复制一条新链接。
+     */
+    public static boolean isLinkExpired(Resp r) {
+        if (r == null || r.code == 0 || r.code == 429) {
+            return false;
+        }
+        String body = r.bodyPreview == null ? "" : r.bodyPreview.toLowerCase(Locale.US);
+        if (body.isEmpty()) {
+            return false;
+        }
+        if (body.contains("subscription link is invalid")
+                || body.contains("link is invalid or expired")
+                || body.contains("链接已失效") || body.contains("订阅已过期")
+                || body.contains("订阅链接无效")) {
+            return true;
+        }
+        return r.code == 404 && body.length() < 300 && !body.contains("<html");
     }
 
     private static String sanitize(byte[] data) {

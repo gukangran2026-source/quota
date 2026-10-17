@@ -102,6 +102,9 @@ public class MainActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
     private int pending = 0;
+    /** 上次遇到 429 的时刻，用来做冷却（不持久化，重启就清）。 */
+    private long lastRateLimitedAt = 0L;
+    private static final long RATE_LIMIT_COOLDOWN_MS = 60_000L;
 
     private AlertDialog detailDialog;
     private Sub detailSub;
@@ -662,6 +665,12 @@ public class MainActivity extends Activity {
         if (s.loading) {
             return;
         }
+        // 刚被限流过就冷却 60 秒，免得连着点刷新把限流越拖越长。
+        long since = System.currentTimeMillis() - lastRateLimitedAt;
+        if (s.failKind == Sub.FAIL_RATE_LIMIT && since < RATE_LIMIT_COOLDOWN_MS) {
+            toast("刚被服务器限流，等 " + ((RATE_LIMIT_COOLDOWN_MS - since) / 1000 + 1) + " 秒再刷");
+            return;
+        }
         s.loading = true;
         s.progressNote = "正在刷新";
         s.error = "";
@@ -701,6 +710,8 @@ public class MainActivity extends Activity {
         String preview = "";
         boolean noHttpResponse = false;
         boolean tokenRejected = false;
+        boolean rateLimited = false;
+        boolean linkExpired = false;
         String serverMessage = "";
     }
 
@@ -715,6 +726,8 @@ public class MainActivity extends Activity {
         boolean hadLock = false;
         boolean tokenRejected = false;
         String tokenMessage = "";
+        boolean rateLimited = false;
+        boolean linkExpired = false;
 
         Strategies.Attempt locked = Strategies.byKey(s.method, cfgUa);
         if (mode != REFRESH_FULL && locked != null) {
@@ -730,6 +743,12 @@ public class MainActivity extends Activity {
                 tokenRejected = true;
                 tokenMessage = o.serverMessage;
                 log.append("　→ 服务器判定订阅令牌无效，停止尝试\n");
+            } else if (o.rateLimited) {
+                rateLimited = true;
+                log.append("　→ 服务器限流（HTTP 429），停止尝试（继续打只会更久）\n");
+            } else if (o.linkExpired) {
+                linkExpired = true;
+                log.append("　→ 服务器说这条订阅链接已失效/过期，停止尝试\n");
             } else {
                 log.append("　→ 已锁定的方式这次没取到\n");
             }
@@ -763,6 +782,16 @@ public class MainActivity extends Activity {
                     log.append("　→ 服务器判定订阅令牌无效（换标识和换代理都没用），停止尝试\n");
                     break;
                 }
+                if (o.rateLimited) {
+                    rateLimited = true;
+                    log.append("　→ 服务器限流（HTTP 429），停止尝试\n");
+                    break;
+                }
+                if (o.linkExpired) {
+                    linkExpired = true;
+                    log.append("　→ 服务器说这条订阅链接已失效/过期，停止尝试\n");
+                    break;
+                }
             }
         }
 
@@ -772,6 +801,9 @@ public class MainActivity extends Activity {
         final boolean lockedFailed = hadLock;
         final boolean tokenRejectedFinal = tokenRejected;
         final String tokenMessageFinal = tokenMessage;
+        final boolean rateLimitedFinal = rateLimited;
+        final boolean linkExpiredFinal = linkExpired;
+        final boolean hadDataFinal = s.hasInfo;
 
         ui.post(new Runnable() {
             @Override
@@ -785,28 +817,48 @@ public class MainActivity extends Activity {
                     s.diag = "命中方式：" + result.label + "（已锁定，之后刷新只走这一种）\n\n" + logText
                             + (previewText.isEmpty() ? "" : ("\n响应内容片段：\n" + previewText + "\n"));
                 } else {
-                    if (tokenRejectedFinal) {
-                        s.fail("订阅链接被服务器拒绝：" + shortMsg(tokenMessageFinal) + " · 点详情可改链接");
+                    // 限流 / 链接失效 / 没网都不该把已有的流量数字清掉，只是标一句。
+                    if (rateLimitedFinal) {
+                        s.failKeepingData("服务器限流（请求太频繁）· 过一会儿再刷", Sub.FAIL_RATE_LIMIT);
+                    } else if (linkExpiredFinal) {
+                        s.failKeepingData("订阅链接已失效 · 去面板重新复制一条", Sub.FAIL_EXPIRED);
+                    } else if (tokenRejectedFinal) {
+                        s.failKeepingData("订阅链接被服务器拒绝：" + shortMsg(tokenMessageFinal) + " · 点详情可改链接",
+                                Sub.FAIL_TOKEN);
                     } else if (lockedFailed) {
-                        s.fail("已锁定方式失效 · 点详情重新验证");
+                        s.failKeepingData("已锁定方式失效 · 点详情重新验证", Sub.FAIL_NO_ROUTE);
                     } else if (TextUtils.isEmpty(s.method)) {
-                        s.fail("还没有锁定可用方式 · 点详情重新验证");
+                        s.failKeepingData("还没有锁定可用方式 · 点详情重新验证", Sub.FAIL_NO_ROUTE);
                     } else {
-                        s.fail("本次刷新没取到流量信息 · 点详情看原因");
+                        s.failKeepingData("本次刷新没取到流量信息 · 点详情看原因", Sub.FAIL_NO_ROUTE);
                     }
                     s.diag = logText
                             + (previewText.isEmpty() ? "" : ("\n响应内容片段：\n" + previewText + "\n"))
-                            + (tokenRejectedFinal
+                            + (rateLimitedFinal
+                                ? "\n结论：服务器限流（HTTP 429），这条链接本身没坏。"
+                                  + "刚才已经停止继续尝试——继续换标识猛打只会让限流更久。"
+                                  + "等几分钟再点刷新即可。"
+                                : linkExpiredFinal
+                                ? "\n结论：服务器明确说这条订阅链接失效或已过期（不是限流，也不是网络问题）。"
+                                  + "换客户端标识、换代理都一样。"
+                                  + "请登录机场面板重新复制订阅链接，再用「编辑链接」粘贴进来。"
+                                : tokenRejectedFinal
                                 ? "\n结论：服务器明确拒绝了这条订阅链接的令牌。"
                                   + "换客户端标识、换代理、换别的 App 结果都一样——"
                                   + "请在机场面板重新复制订阅链接，再用上面的「编辑链接」粘贴进来。"
-                                : "\n提示：直连连不上就先把 VPN 打开，再在详情里点「重新验证方式」。");
+                                : "\n提示：直连连不上就先把 VPN 打开，再在详情里点「重新验证方式」。")
+                            + (hadDataFinal
+                                ? "\n（卡片上的数字是上一次成功刷新时拿到的，本次没被覆盖）"
+                                : "");
                 }
                 pending--;
                 if (pending < 0) {
                     pending = 0;
                 }
                 s.progressNote = "";
+                if (rateLimitedFinal) {
+                    lastRateLimitedAt = System.currentTimeMillis();
+                }
                 save();
                 adapter.notifyDataSetChanged();
                 syncFabSpin();
@@ -849,6 +901,8 @@ public class MainActivity extends Activity {
         o.noHttpResponse = (r.code == 0);
         o.serverMessage = serverMsg;
         o.tokenRejected = Net.isTokenRejected(r);
+        o.rateLimited = Net.isRateLimited(r);
+        o.linkExpired = Net.isLinkExpired(r);
         if (u != null) {
             o.u = u;
             o.title = decodeProfileTitle(r.header("profile-title"));
@@ -1141,7 +1195,7 @@ public class MainActivity extends Activity {
     private void showAbout() {
         new AlertDialog.Builder(this)
                 .setTitle("关于")
-                .setMessage("Quota v2.7\n\n"
+                .setMessage("Quota v2.8\n\n"
                         + "作者：gukangran2026-source（GitHub）\n\n"
                         + "用途：把订阅链接里的额度信息读出来，显示剩余流量和到期时间。\n\n"
                         + "原理：向订阅链接发一次 GET 请求，读取服务器返回的 subscription-userinfo 响应头"
@@ -1153,6 +1207,10 @@ public class MainActivity extends Activity {
                         + "· 没有自动刷新：冷启动时查一次，平时只有你点才刷；锁定方式失效时状态行会提示，"
                         + "在详情里点「重新验证方式」重跑即可。\n\n"
                         + "· 配色：菜单里的「配色」可切换「默认（品牌蓝）」与「莫奈（跟随壁纸取色，Android 12 及以上）」。\n\n"
+                        + "· 若服务器限流（HTTP 429），会立刻停止尝试并在卡片上标「限流」，等一会儿再刷即可——"
+                        + "这时卡片上的数字是上次成功刷新的结果，不会被清掉。\n\n"
+                        + "· 若服务器说订阅链接失效/过期（例如 Subscription link is invalid or expired），"
+                        + "会标「链接失效」，需要去机场面板重新复制链接。\n\n"
                         + "· 若服务器明确拒绝订阅令牌（例如 token is error），会立刻停止并提示，"
                         + "可在详情里用「编辑链接」换成新链接。\n\n"
                         + "说明：本应用不解析节点、不代理任何流量，只读响应头；数据只保存在本机。")
@@ -1260,7 +1318,16 @@ public class MainActivity extends Activity {
             } else {
                 badge.setVisibility(View.VISIBLE);
                 badge.setTextColor(0xFFFFFFFF);
-                badge.setText(u.unlimited() ? "不限量" : (tight ? "即将用尽" : "正常"));
+                // 刷新失败时胶囊直接说原因，不再假装“正常”——数字还是上次的。
+                if (s.failKind == Sub.FAIL_RATE_LIMIT) {
+                    badge.setText("限流");
+                } else if (s.failKind == Sub.FAIL_EXPIRED) {
+                    badge.setText("链接失效");
+                } else if (s.failKind == Sub.FAIL_TOKEN) {
+                    badge.setText("令牌被拒");
+                } else {
+                    badge.setText(u.unlimited() ? "不限量" : (tight ? "即将用尽" : "正常"));
+                }
             }
 
             boolean preferUsed = preferUsed();
@@ -1308,9 +1375,10 @@ public class MainActivity extends Activity {
                         ? "正在刷新 · 上次 " + fmtTime(s.lastQuery)
                         : "正在刷新");
             } else if (u != null) {
+                // 有旧数据时把“这次没刷到”的原因说清楚，并标出数字的时间
                 status.setText(TextUtils.isEmpty(s.error)
                         ? (fmtTime(s.lastQuery) + " · " + shortMethod(s))
-                        : s.error);
+                        : (s.error + " · 数字为 " + fmtTime(s.lastQuery)));
             } else {
                 status.setText(TextUtils.isEmpty(s.error) ? "未锁定可用方式 · 点详情重新验证" : s.error);
             }
